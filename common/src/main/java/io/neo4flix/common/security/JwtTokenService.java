@@ -27,6 +27,9 @@ public class JwtTokenService {
     private static final String CLAIM_TOKEN_TYPE = "type";
     public static final String TYPE_ACCESS = "access";
     public static final String TYPE_REFRESH = "refresh";
+    /** Token court (5 min) émis quand le password est OK mais le 2FA reste à vérifier. */
+    public static final String TYPE_2FA_PENDING = "2fa_pending";
+    private static final long TWO_FA_PENDING_TTL_MS = 5 * 60 * 1000L;
 
     private final JwtProperties props;
 
@@ -47,6 +50,11 @@ public class JwtTokenService {
 
     public String issueRefreshToken(String userId, String username) {
         return issue(userId, username, TYPE_REFRESH, props.refreshTokenTtl().toMillis());
+    }
+
+    /** Ticket court (5 min) à présenter à /auth/login/2fa avec le code TOTP. */
+    public String issue2faPendingToken(String userId, String username) {
+        return issue(userId, username, TYPE_2FA_PENDING, TWO_FA_PENDING_TTL_MS);
     }
 
     private String issue(String userId, String username, String type, long ttlMs) {
@@ -81,6 +89,10 @@ public class JwtTokenService {
 
     public boolean isRefreshToken(Claims claims) {
         return TYPE_REFRESH.equals(claims.get(CLAIM_TOKEN_TYPE));
+    }
+
+    public boolean is2faPendingToken(Claims claims) {
+        return TYPE_2FA_PENDING.equals(claims.get(CLAIM_TOKEN_TYPE));
     }
 
     public String getUsername(Claims claims) {

@@ -4,6 +4,7 @@ export interface User {
   username: string;
   email: string;
   createdAt: string;
+  twoFactorEnabled: boolean;
 }
 
 export interface RegisterRequest {
@@ -23,4 +24,26 @@ export interface TokenResponse {
   tokenType: 'Bearer';
   expiresInSeconds: number;
   user: User;
+}
+
+/**
+ * Réponse de POST /auth/login : peut être soit des tokens (2FA off),
+ * soit un challenge 2FA (ticket à présenter à /auth/login/2fa).
+ */
+export interface LoginResult {
+  requires2fa: boolean;
+  // si requires2fa = false :
+  accessToken?: string;
+  refreshToken?: string;
+  tokenType?: 'Bearer';
+  expiresInSeconds?: number;
+  user?: User;
+  // si requires2fa = true :
+  twoFactorTicket?: string;
+}
+
+export interface TwoFactorSetupResponse {
+  secret: string;
+  provisioningUri: string;
+  qrCodeDataUri: string;
 }

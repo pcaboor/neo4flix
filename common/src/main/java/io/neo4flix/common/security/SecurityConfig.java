@@ -42,7 +42,13 @@ public class SecurityConfig {
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .exceptionHandling(eh -> eh.authenticationEntryPoint(entryPoint))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/auth/**").permitAll()
+                        // Login flow : public.
+                        // /auth/login/2fa est aussi public car le user n'a pas
+                        // encore de token (seulement un ticket court).
+                        .requestMatchers(HttpMethod.POST,
+                                "/auth/login", "/auth/login/2fa", "/auth/refresh").permitAll()
+                        // /auth/2fa/setup|enable|disable exigent un token (configuration
+                        // par un user déjà connecté) → tombent sur anyRequest().authenticated()
                         .requestMatchers(HttpMethod.POST, "/users").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html",

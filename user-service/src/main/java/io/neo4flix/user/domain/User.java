@@ -37,4 +37,14 @@ public class User {
     private String passwordHash;
 
     private Instant createdAt;
+
+    /** 2FA TOTP — désactivé par défaut, opt-in. */
+    private boolean twoFactorEnabled;
+
+    /**
+     * Secret TOTP en base32. Nullable jusqu'à activation.
+     * En prod : chiffrer avec une clé de l'application (Vault / KMS).
+     * Ici stocké en clair pour la démo (cf. doc).
+     */
+    private String twoFactorSecret;
 }

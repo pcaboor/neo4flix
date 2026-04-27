@@ -8,11 +8,12 @@ import { AuthService } from '../../core/auth/auth.service';
 import { ToastService } from '../../core/toast/toast.service';
 import { ApiError } from '../../core/models/api-error.model';
 import { User } from '../../core/models/user.model';
+import { TwoFactorSectionComponent } from './two-factor-section.component';
 
 @Component({
   selector: 'app-profile',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, TwoFactorSectionComponent],
   template: `
     <div class="space-y-8">
       <header>
@@ -62,6 +63,9 @@ import { User } from '../../core/models/user.model';
           </button>
         </form>
       </section>
+
+      <!-- 2FA -->
+      <app-two-factor-section />
 
       <!-- Réseau social -->
       <section class="grid sm:grid-cols-2 gap-6">

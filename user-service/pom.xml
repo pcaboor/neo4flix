@@ -43,6 +43,13 @@
             <artifactId>spring-security-crypto</artifactId>
         </dependency>
 
+        <!-- TOTP (RFC 6238) — compatible Google Authenticator, Authy, 1Password… -->
+        <dependency>
+            <groupId>dev.samstevens.totp</groupId>
+            <artifactId>totp</artifactId>
+            <version>1.7.1</version>
+        </dependency>
+
         <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
