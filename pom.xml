@@ -25,6 +25,8 @@
         <module>common</module>
         <module>movie-service</module>
         <module>user-service</module>
+        <module>rating-service</module>
+        <module>recommendation-service</module>
     </modules>
 
     <properties>
