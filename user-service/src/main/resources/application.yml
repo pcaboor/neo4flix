@@ -29,3 +29,11 @@ springdoc:
     path: /swagger-ui.html
   api-docs:
     path: /v3/api-docs
+
+neo4flix:
+  security:
+    jwt:
+      secret: ${NEO4FLIX_JWT_SECRET:change-me-please-this-is-not-a-prod-secret-32chars}
+      access-token-ttl: PT1H
+      refresh-token-ttl: P30D
+      issuer: neo4flix

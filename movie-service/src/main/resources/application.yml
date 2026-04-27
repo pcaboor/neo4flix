@@ -36,3 +36,13 @@ springdoc:
 logging:
   level:
     org.springframework.data.neo4j: INFO
+
+neo4flix:
+  security:
+    jwt:
+      # Doit être identique sur les 4 services pour partager les tokens.
+      # En prod : passer par variable d'env, jamais en clair dans le repo.
+      secret: ${NEO4FLIX_JWT_SECRET:change-me-please-this-is-not-a-prod-secret-32chars}
+      access-token-ttl: PT1H      # 1 heure
+      refresh-token-ttl: P30D     # 30 jours
+      issuer: neo4flix
