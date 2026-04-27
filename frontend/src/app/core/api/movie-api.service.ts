@@ -9,10 +9,12 @@ export class MovieApi {
   private http = inject(HttpClient);
   private base = `${environment.apiBaseUrl}/movies`;
 
-  list(opts: { title?: string; genre?: string } = {}): Observable<Movie[]> {
+  list(opts: { title?: string; genre?: string; yearFrom?: number; yearTo?: number } = {}): Observable<Movie[]> {
     let params = new HttpParams();
     if (opts.title) params = params.set('title', opts.title);
     if (opts.genre) params = params.set('genre', opts.genre);
+    if (opts.yearFrom != null) params = params.set('yearFrom', opts.yearFrom);
+    if (opts.yearTo != null)   params = params.set('yearTo',   opts.yearTo);
     return this.http.get<Movie[]>(this.base, { params });
   }
 

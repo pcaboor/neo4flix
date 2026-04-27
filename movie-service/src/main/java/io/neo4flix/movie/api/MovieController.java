@@ -31,16 +31,17 @@ public class MovieController {
 
     private final MovieService service;
 
-    /** GET /movies?title=...&genre=... */
+    /** GET /movies?title=&genre=&yearFrom=&yearTo= — tous les filtres optionnels et combinables */
     @GetMapping
     public List<MovieDto> list(
             @RequestParam(required = false) String title,
-            @RequestParam(required = false) String genre
+            @RequestParam(required = false) String genre,
+            @RequestParam(required = false) Integer yearFrom,
+            @RequestParam(required = false) Integer yearTo
     ) {
-        if (genre != null && !genre.isBlank()) {
-            return service.findByGenre(genre).stream().map(MovieDto::from).toList();
-        }
-        return service.search(title).stream().map(MovieDto::from).toList();
+        return service.search(title, genre, yearFrom, yearTo).stream()
+                .map(MovieDto::from)
+                .toList();
     }
 
     /** GET /movies/{id} */

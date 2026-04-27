@@ -32,6 +32,30 @@ public interface MovieRepository extends Neo4jRepository<Movie, String> {
     List<Movie> findByGenre(@Param("genreName") String genreName);
 
     /**
+     * Recherche multi-critères. Tous les paramètres sont optionnels (null
+     * signifie "pas de contrainte"). Le Cypher utilise `coalesce` / `IS NULL`
+     * pour court-circuiter chaque filtre absent.
+     *
+     * Le `EXISTS { ... }` (pattern comprehensions de Cypher 5) permet de
+     * filtrer sur l'existence d'un genre sans dupliquer les films via un MATCH.
+     */
+    @Query("""
+            MATCH (m:Movie)
+            WHERE ($title    IS NULL OR toLower(m.title) CONTAINS toLower($title))
+              AND ($genre    IS NULL OR EXISTS { MATCH (m)-[:BELONGS_TO]->(:Genre {name: $genre}) })
+              AND ($yearFrom IS NULL OR m.releaseYear >= $yearFrom)
+              AND ($yearTo   IS NULL OR m.releaseYear <= $yearTo)
+            RETURN m
+            ORDER BY m.releaseYear DESC, m.title ASC
+            """)
+    List<Movie> search(
+            @Param("title")    String title,
+            @Param("genre")    String genre,
+            @Param("yearFrom") Integer yearFrom,
+            @Param("yearTo")   Integer yearTo
+    );
+
+    /**
      * Supprime les relations BELONGS_TO d'un film.
      * À appeler avant save() pour remplacer (et non additionner) les genres.
      */

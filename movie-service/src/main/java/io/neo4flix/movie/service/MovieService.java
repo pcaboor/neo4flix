@@ -38,13 +38,14 @@ public class MovieService {
                 .orElseThrow(() -> new ResourceNotFoundException("Movie", id));
     }
 
-    public List<Movie> search(String title) {
-        if (title == null || title.isBlank()) return movies.findAll();
-        return movies.findByTitleContainingIgnoreCase(title);
-    }
-
-    public List<Movie> findByGenre(String genre) {
-        return movies.findByGenre(genre);
+    /**
+     * Recherche multi-critères. Tous les paramètres optionnels.
+     * Délègue à un Cypher unifié qui ignore les filtres null.
+     */
+    public List<Movie> search(String title, String genre, Integer yearFrom, Integer yearTo) {
+        String t = (title != null && !title.isBlank()) ? title : null;
+        String g = (genre != null && !genre.isBlank()) ? genre : null;
+        return movies.search(t, g, yearFrom, yearTo);
     }
 
     // ----- Écriture -----

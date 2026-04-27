@@ -1,5 +1,5 @@
 import { Component, OnDestroy, inject, signal } from '@angular/core';
-import { FormControl, ReactiveFormsModule } from '@angular/forms';
+import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { Subject, debounceTime, distinctUntilChanged, switchMap, takeUntil } from 'rxjs';
 import { MovieApi } from '../../core/api/movie-api.service';
 import { Movie } from '../../core/models/movie.model';
@@ -11,34 +11,49 @@ import { MovieCardComponent } from '../../shared/components/movie-card.component
   imports: [ReactiveFormsModule, MovieCardComponent],
   template: `
     <div class="space-y-6">
-      <header class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-        <div>
-          <h1 class="text-2xl font-semibold">Catalogue</h1>
-          <p class="text-sm text-zinc-400 mt-1">
-            {{ movies().length }} film{{ movies().length > 1 ? 's' : '' }}
-          </p>
-        </div>
-
-        <div class="flex flex-col sm:flex-row gap-3">
-          <div class="relative">
-            <input [formControl]="searchControl"
-                   placeholder="Rechercher un titre…"
-                   class="input pl-9 sm:w-64" />
-            <svg class="absolute left-2.5 top-2.5 w-4 h-4 text-zinc-500"
-                 viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="11" cy="11" r="8"/>
-              <path d="m21 21-4.3-4.3"/>
-            </svg>
-          </div>
-
-          <select [formControl]="genreControl" class="input sm:w-44">
-            <option [ngValue]="''">Tous les genres</option>
-            @for (g of genres; track g) {
-              <option [value]="g">{{ g }}</option>
-            }
-          </select>
-        </div>
+      <header>
+        <h1 class="text-2xl font-semibold">Catalogue</h1>
+        <p class="text-sm text-zinc-400 mt-1">
+          {{ movies().length }} film{{ movies().length > 1 ? 's' : '' }}
+        </p>
       </header>
+
+      <!-- Barre de filtres -->
+      <div [formGroup]="filters" class="flex flex-wrap gap-3 items-end">
+        <div class="relative flex-1 min-w-48">
+          <input formControlName="title"
+                 placeholder="Rechercher un titre…"
+                 class="input pl-9" />
+          <svg class="absolute left-2.5 top-2.5 w-4 h-4 text-zinc-500"
+               viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/>
+            <path d="m21 21-4.3-4.3"/>
+          </svg>
+        </div>
+
+        <select formControlName="genre" class="input w-44">
+          <option value="">Tous les genres</option>
+          @for (g of genres; track g) {
+            <option [value]="g">{{ g }}</option>
+          }
+        </select>
+
+        <input formControlName="yearFrom" type="number"
+               placeholder="Année min"
+               min="1888" max="2100"
+               class="input w-32" />
+        <input formControlName="yearTo" type="number"
+               placeholder="Année max"
+               min="1888" max="2100"
+               class="input w-32" />
+
+        @if (hasActiveFilters()) {
+          <button type="button" (click)="resetFilters()"
+                  class="text-sm text-zinc-400 hover:text-zinc-200 px-2 py-1">
+            Réinitialiser
+          </button>
+        }
+      </div>
 
       @if (loading()) {
         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
@@ -68,34 +83,27 @@ export class CatalogComponent implements OnDestroy {
   private api = inject(MovieApi);
   private destroy$ = new Subject<void>();
 
-  // Liste de genres extraite du seed — pourrait venir d'un endpoint dédié
   protected readonly genres = ['Action', 'Adventure', 'Crime', 'Drama', 'Sci-Fi', 'Thriller'];
 
-  protected searchControl = new FormControl('', { nonNullable: true });
-  protected genreControl = new FormControl('', { nonNullable: true });
+  // Form group : 4 contrôles dont 2 numériques. nullable pour gérer le "vide".
+  protected filters = new FormGroup({
+    title:    new FormControl<string>('', { nonNullable: true }),
+    genre:    new FormControl<string>('', { nonNullable: true }),
+    yearFrom: new FormControl<number | null>(null),
+    yearTo:   new FormControl<number | null>(null)
+  });
 
   protected movies = signal<Movie[]>([]);
   protected loading = signal(true);
 
   constructor() {
-    // Trigger commun pour le debounce — on combine les deux controls
-    const trigger$ = new Subject<void>();
-    this.searchControl.valueChanges
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(() => trigger$.next());
-    this.genreControl.valueChanges
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(() => trigger$.next());
-
-    trigger$.pipe(
-      debounceTime(250),
-      distinctUntilChanged(),
+    // Tous les changements passent par valueChanges du form group → un seul flux à debouncer.
+    this.filters.valueChanges.pipe(
+      debounceTime(300),
+      distinctUntilChanged((a, b) => JSON.stringify(a) === JSON.stringify(b)),
       switchMap(() => {
         this.loading.set(true);
-        return this.api.list({
-          title: this.searchControl.value || undefined,
-          genre: this.genreControl.value || undefined
-        });
+        return this.api.list(this.cleanedFilters());
       }),
       takeUntil(this.destroy$)
     ).subscribe({
@@ -108,6 +116,26 @@ export class CatalogComponent implements OnDestroy {
       next: ms => { this.movies.set(ms); this.loading.set(false); },
       error: () => this.loading.set(false)
     });
+  }
+
+  protected hasActiveFilters(): boolean {
+    const v = this.filters.value;
+    return !!(v.title || v.genre || v.yearFrom != null || v.yearTo != null);
+  }
+
+  protected resetFilters() {
+    this.filters.reset({ title: '', genre: '', yearFrom: null, yearTo: null });
+  }
+
+  /** Strip empty strings + ranges invalides */
+  private cleanedFilters() {
+    const v = this.filters.value;
+    return {
+      title:    v.title || undefined,
+      genre:    v.genre || undefined,
+      yearFrom: v.yearFrom ?? undefined,
+      yearTo:   v.yearTo ?? undefined
+    };
   }
 
   ngOnDestroy() {
