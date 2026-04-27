@@ -1,0 +1,75 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: gateway-service
+
+  cloud:
+    gateway:
+      # CORS global (utile dès que le frontend Angular tape ici)
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowed-origin-patterns:
+              - "http://localhost:4200"
+              - "http://localhost:*"
+            allowed-methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+            allowed-headers: ["*"]
+            allow-credentials: true
+            max-age: 3600
+
+      # ============================================================
+      # Routes : /api/<chose>/** → service correspondant
+      # StripPrefix=1 retire le segment /api avant le forward.
+      # Les URI utilisent des hostnames Docker — surchargeables par env var.
+      # ============================================================
+      routes:
+        - id: auth-route
+          uri: ${USER_SERVICE_URI:http://user-service:8082}
+          predicates:
+            - Path=/api/auth/**
+          filters:
+            - StripPrefix=1
+
+        - id: user-route
+          uri: ${USER_SERVICE_URI:http://user-service:8082}
+          predicates:
+            - Path=/api/users/**
+          filters:
+            - StripPrefix=1
+
+        - id: movie-route
+          uri: ${MOVIE_SERVICE_URI:http://movie-service:8081}
+          predicates:
+            - Path=/api/movies/**
+          filters:
+            - StripPrefix=1
+
+        - id: rating-route
+          uri: ${RATING_SERVICE_URI:http://rating-service:8083}
+          predicates:
+            - Path=/api/ratings/**
+          filters:
+            - StripPrefix=1
+
+        - id: recommendation-route
+          uri: ${RECOMMENDATION_SERVICE_URI:http://recommendation-service:8084}
+          predicates:
+            - Path=/api/recommendations/**
+          filters:
+            - StripPrefix=1
+
+management:
+  endpoints:
+    web:
+      exposure:
+        # gateway expose une vue agrégée des routes
+        include: health, info, gateway
+  endpoint:
+    health:
+      show-details: when_authorized
+
+logging:
+  level:
+    org.springframework.cloud.gateway: INFO

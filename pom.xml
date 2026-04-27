@@ -27,6 +27,7 @@
         <module>user-service</module>
         <module>rating-service</module>
         <module>recommendation-service</module>
+        <module>gateway-service</module>
     </modules>
 
     <properties>
@@ -38,12 +39,26 @@
         <!-- Versions centralisées des libs non gérées par spring-boot-parent -->
         <jjwt.version>0.12.6</jjwt.version>
         <springdoc.version>2.6.0</springdoc.version>
+        <!-- Spring Cloud 2023.0.3 — compatible Spring Boot 3.3.4/3.3.5.
+             2023.0.4 utilise HttpHeaders.headerSet() qui vient de Spring 6.2
+             (= Boot 3.4+) → NoSuchMethodError au runtime sur 3.3. -->
+        <spring-cloud.version>2023.0.3</spring-cloud.version>
     </properties>
 
     <!-- dependencyManagement : déclare les versions ici, on les utilise sans
          version dans les modules enfants. Maven garantit la cohérence. -->
     <dependencyManagement>
         <dependencies>
+            <!-- Spring Cloud BOM : importe toutes les versions Spring Cloud
+                 (Gateway, OpenFeign, etc.) cohérentes avec Spring Boot. -->
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-dependencies</artifactId>
+                <version>${spring-cloud.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
             <!-- Module commun partagé -->
             <dependency>
                 <groupId>io.neo4flix</groupId>

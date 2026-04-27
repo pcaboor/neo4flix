@@ -27,6 +27,7 @@ COPY movie-service/pom.xml movie-service/
 COPY user-service/pom.xml user-service/
 COPY rating-service/pom.xml rating-service/
 COPY recommendation-service/pom.xml recommendation-service/
+COPY gateway-service/pom.xml gateway-service/
 
 # 2) Pré-fetch des dépendances. -am = also-make (inclut common comme dépendance).
 #    --mount=type=cache : Docker BuildKit cache pour ~/.m2 inter-builds.
