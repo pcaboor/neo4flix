@@ -1,0 +1,20 @@
+# N'envoie pas ces dossiers au démon Docker — accélère le build.
+.git/
+.idea/
+.vscode/
+.claude/
+**/target/
+**/build/
+**/node_modules/
+**/.angular/
+**/dist/
+*.iml
+**/*.log
+.env
+.env.*
+!.env.example
+docs/
+README.md
+
+# Garde uniquement ce qu'il faut pour builder :
+#   pom.xml, common/, *-service/, neo4j/init/ (utile à l'image neo4j)

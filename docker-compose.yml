@@ -1,13 +1,37 @@
+name: neo4flix
+
+# ============================================================
+# Variables réutilisées par tous les services Spring Boot
+# (YAML anchors → DRY).
+# ============================================================
+x-spring-env: &spring-env
+  SPRING_NEO4J_URI: bolt://neo4j:7687
+  SPRING_NEO4J_AUTHENTICATION_USERNAME: neo4j
+  SPRING_NEO4J_AUTHENTICATION_PASSWORD: ${NEO4J_PASSWORD:-neo4flix123}
+  NEO4FLIX_JWT_SECRET: ${NEO4FLIX_JWT_SECRET:-change-me-please-this-is-not-a-prod-secret-32chars}
+
+x-service-defaults: &service-defaults
+  build:
+    context: .
+    dockerfile: Dockerfile
+  restart: unless-stopped
+  depends_on:
+    neo4j:
+      condition: service_healthy
+  networks:
+    - neo4flix-net
+
 services:
+  # --------- Base de données ---------
   neo4j:
     image: neo4j:5.20-community
     container_name: neo4flix-neo4j
     restart: unless-stopped
     ports:
-      - "7474:7474"   # HTTP — interface web Neo4j Browser
-      - "7687:7687"   # Bolt — protocole utilisé par les drivers (Spring Boot)
+      - "7474:7474"   # HTTP — Neo4j Browser
+      - "7687:7687"   # Bolt — drivers
     environment:
-      NEO4J_AUTH: neo4j/neo4flix123
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:-neo4flix123}
       NEO4J_PLUGINS: '["apoc"]'
       NEO4J_dbms_security_procedures_unrestricted: apoc.*
       NEO4J_server_memory_heap_initial__size: 512m
@@ -21,6 +45,73 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - neo4flix-net
+
+  # --------- Microservices ---------
+  movie-service:
+    <<: *service-defaults
+    container_name: neo4flix-movie
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE_NAME: movie-service
+        HTTP_PORT: "8081"
+    environment:
+      <<: *spring-env
+      SERVER_PORT: "8081"
+    ports:
+      - "8081:8081"
+
+  user-service:
+    <<: *service-defaults
+    container_name: neo4flix-user
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE_NAME: user-service
+        HTTP_PORT: "8082"
+    environment:
+      <<: *spring-env
+      SERVER_PORT: "8082"
+    ports:
+      - "8082:8082"
+
+  rating-service:
+    <<: *service-defaults
+    container_name: neo4flix-rating
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE_NAME: rating-service
+        HTTP_PORT: "8083"
+    environment:
+      <<: *spring-env
+      SERVER_PORT: "8083"
+    ports:
+      - "8083:8083"
+
+  recommendation-service:
+    <<: *service-defaults
+    container_name: neo4flix-recommendation
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE_NAME: recommendation-service
+        HTTP_PORT: "8084"
+    environment:
+      <<: *spring-env
+      SERVER_PORT: "8084"
+    ports:
+      - "8084:8084"
+
+networks:
+  neo4flix-net:
+    driver: bridge
 
 volumes:
   neo4j_data:
