@@ -36,7 +36,7 @@ COPY --from=builder /build/dist/neo4flix-frontend/browser /usr/share/nginx/html
 
 EXPOSE 80
 HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=5 \
-    CMD wget -qO- http://localhost/health || exit 1
+    CMD wget -qO- http://127.0.0.1/health || exit 1
 
 # nginx tourne en root par défaut pour binder le port 80, c'est le standard de l'image officielle.
 CMD ["nginx", "-g", "daemon off;"]

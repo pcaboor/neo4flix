@@ -53,6 +53,16 @@ Plus besoin de `npm start` — le frontend est dans un conteneur qui sert le
 bundle statique et fait le reverse-proxy vers le gateway. Voir section 11
 pour les détails.
 
+Pour tester en HTTPS local, génère d'abord un certificat puis démarre le
+compose avec l'overlay dédié :
+
+```bash
+./scripts/generate-certs.sh
+docker compose -f docker-compose.yml -f docker-compose.https.yml up -d
+# → https://localhost
+# → https://localhost:8090 (compat)
+```
+
 ---
 
 ## 3. Structure
@@ -429,4 +439,3 @@ frontend:
 | Bundle JS toujours rechargé                           | `outputHashing: all` désactivé                          | Vérifier `angular.json` config production      |
 | `npm ci` lent à chaque build                          | Pas de cache mount                                      | `RUN --mount=type=cache,target=/root/.npm`     |
 | Image finale > 200 MB                                 | Builder pas dans un stage séparé                        | Multi-stage avec `COPY --from=builder`         |
-

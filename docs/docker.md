@@ -61,6 +61,36 @@ Tout est ensuite dispo sur :
 | http://localhost:8084/swagger-ui.html       | Swagger recommendation     |
 | http://localhost:808X/actuator/health       | Healthcheck par service    |
 
+### Option HTTPS locale
+
+Let's Encrypt ne fonctionne pas en local, car il faut un domaine public.
+Pour le dev local, le projet propose donc :
+
+- `mkcert` si disponible : certificat local signé par une CA de confiance
+- `openssl` sinon : certificat self-signed en fallback
+
+Mode HTTP par défaut, inchangé :
+
+```bash
+docker compose up -d
+# Frontend : http://localhost:8090
+```
+
+Mode HTTPS opt-in :
+
+```bash
+./scripts/generate-certs.sh
+docker compose -f docker-compose.yml -f docker-compose.https.yml up -d
+```
+
+Avec l'overlay HTTPS :
+
+| URL                   | Quoi                                      |
+| --------------------- | ----------------------------------------- |
+| https://localhost     | Frontend en HTTPS                         |
+| http://localhost      | Redirection vers `https://localhost`      |
+| https://localhost:8090 | Alias de compatibilité vers le frontend HTTPS |
+
 ---
 
 ## 3. Architecture du Dockerfile
