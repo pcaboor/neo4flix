@@ -17,9 +17,18 @@ export const routes: Routes = [
     canActivate: [authGuard],
     loadComponent: () => import('./shared/layout/app-shell.component').then(m => m.AppShellComponent),
     children: [
+      { path: '', redirectTo: 'movies', pathMatch: 'full' },
       {
-        path: '',
-        loadComponent: () => import('./features/home/home.component').then(m => m.HomeComponent)
+        path: 'movies',
+        loadComponent: () => import('./features/catalog/catalog.component').then(m => m.CatalogComponent)
+      },
+      {
+        path: 'movies/:id',
+        loadComponent: () => import('./features/movie-detail/movie-detail.component').then(m => m.MovieDetailComponent)
+      },
+      {
+        path: 'watchlist',
+        loadComponent: () => import('./features/watchlist/watchlist.component').then(m => m.WatchlistComponent)
       }
     ]
   },
