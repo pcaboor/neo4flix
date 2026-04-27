@@ -109,6 +109,21 @@ services:
     ports:
       - "8084:8084"
 
+  # --------- Frontend Angular (nginx + reverse-proxy /api → gateway) ---------
+  frontend:
+    container_name: neo4flix-frontend
+    restart: unless-stopped
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "8090:80"
+    depends_on:
+      gateway-service:
+        condition: service_healthy
+    networks:
+      - neo4flix-net
+
   # --------- API Gateway (point d'entrée unique) ---------
   gateway-service:
     container_name: neo4flix-gateway

@@ -39,8 +39,19 @@ Pour la prod :
 npm run build        # → dist/neo4flix-frontend/
 ```
 
-`environment.apiBaseUrl` pointe sur `http://localhost:8080/api` (le gateway).
-Pour un build prod servi par nginx avec un reverse-proxy `/api`, mettre `'/api'`.
+`environment.apiBaseUrl` pointe sur `http://localhost:8080/api` (le gateway) en
+dev. En prod, c'est `/api` (relatif, géré par le reverse-proxy nginx).
+
+### Démarrage en mode "tout dockerisé"
+
+```bash
+docker compose up -d --build
+# → http://localhost:8090   ← frontend nginx (entrée user)
+```
+
+Plus besoin de `npm start` — le frontend est dans un conteneur qui sert le
+bundle statique et fait le reverse-proxy vers le gateway. Voir section 11
+pour les détails.
 
 ---
 
@@ -309,3 +320,113 @@ src/app/shared/layout/app-shell.ts   # ajouter le lien dans la navbar
 src/app/core/api/<service>-api.ts    # méthode dans le service correspondant
 src/app/core/models/<X>.ts           # interface si nouveau DTO
 ```
+
+---
+
+## 11. Déploiement Docker
+
+### Architecture
+
+```
+Browser → http://localhost:8090
+            │
+            ▼
+   ┌──────────────────┐
+   │  neo4flix-frontend (nginx alpine)            │
+   │                                               │
+   │  /                  → static (index.html)    │
+   │  /movies, /login, …  → SPA fallback          │
+   │  /*.js, /*.css, …   → cache 1 an immutable   │
+   │  /api/*             → proxy_pass http://gateway-service:8080 │
+   │  /health            → 200 (Docker healthcheck)│
+   └──────────────────┘
+```
+
+### Multi-stage Dockerfile
+
+```
+┌─────────────────────────────┐    ┌─────────────────────────────┐
+│  STAGE 1 : node:20-alpine   │    │  STAGE 2 : nginx:alpine     │
+│  + npm ci (cache mount /root│    │                             │
+│                       /.npm)│    │  COPY --from=builder        │
+│  + npm run build            │ ─► │     dist/.../browser        │
+│                             │    │     /usr/share/nginx/html   │
+│  ≈ 600 MB temporaire        │    │  ≈ 50 MB final              │
+└─────────────────────────────┘    └─────────────────────────────┘
+```
+
+### Bascule dev / prod via fileReplacements
+
+`angular.json` (config production) :
+```json
+"fileReplacements": [
+  {
+    "replace": "src/environments/environment.ts",
+    "with": "src/environments/environment.prod.ts"
+  }
+]
+```
+
+| Fichier                     | `apiBaseUrl`                  |
+| --------------------------- | ----------------------------- |
+| `environment.ts` (dev)      | `http://localhost:8080/api`   |
+| `environment.prod.ts`       | `/api` (relatif, via nginx)   |
+
+### nginx.conf — points clés
+
+```nginx
+# SPA fallback : sans ça, ouvrir /movies en direct → 404
+location / {
+    try_files $uri $uri/ /index.html;
+}
+
+# Reverse-proxy : nginx résout "gateway-service" via DNS Docker
+location /api/ {
+    proxy_pass http://gateway-service:8080/api/;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    ...
+}
+
+# Cache long sur assets hashés (Angular génère des noms uniques)
+location ~* \.(?:js|css|woff2?|svg|png|jpg|webp|ico)$ {
+    expires 1y;
+    add_header Cache-Control "public, immutable";
+}
+```
+
+### docker-compose.yml — extrait
+
+```yaml
+frontend:
+  build:
+    context: ./frontend
+    dockerfile: Dockerfile
+  ports:
+    - "8090:80"
+  depends_on:
+    gateway-service:
+      condition: service_healthy
+  networks:
+    - neo4flix-net
+```
+
+### Workflow dev vs prod
+
+| Situation                    | Frontend                          | Backend                      |
+| ---------------------------- | --------------------------------- | ---------------------------- |
+| Itérer sur le frontend       | `npm start` :4200 (HMR)           | `docker compose up -d` (sauf frontend) |
+| Test E2E intégration         | `docker compose up -d` :8090      | tout                          |
+| Déploiement                  | image nginx prod                  | images JRE multi-replicas     |
+
+### Pièges Docker
+
+| Symptôme                                              | Cause                                                   | Fix                                            |
+| ----------------------------------------------------- | ------------------------------------------------------- | ---------------------------------------------- |
+| `502 Bad Gateway` sur /api                            | gateway-service pas démarré ou pas healthy              | `depends_on: condition: service_healthy`       |
+| Refresh manuel sur `/movies` → 404                    | `try_files` SPA fallback manquant                       | Ajouter dans `location /`                      |
+| CORS error sur /api en prod                           | Le frontend tape un domaine externe                     | Toujours passer par le proxy nginx (relatif)   |
+| Bundle JS toujours rechargé                           | `outputHashing: all` désactivé                          | Vérifier `angular.json` config production      |
+| `npm ci` lent à chaque build                          | Pas de cache mount                                      | `RUN --mount=type=cache,target=/root/.npm`     |
+| Image finale > 200 MB                                 | Builder pas dans un stage séparé                        | Multi-stage avec `COPY --from=builder`         |
+
