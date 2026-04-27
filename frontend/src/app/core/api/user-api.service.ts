@@ -1,17 +1,38 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { User } from '../models/user.model';
 import { WatchlistItem } from '../models/watchlist.model';
 
+export interface UpdateUserRequest {
+  username?: string;
+  email?: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class UserApi {
   private http = inject(HttpClient);
   private base = `${environment.apiBaseUrl}/users`;
 
+  list(usernameSearch?: string): Observable<User[]> {
+    const params = usernameSearch
+      ? new HttpParams().set('username', usernameSearch)
+      : new HttpParams();
+    return this.http.get<User[]>(this.base, { params });
+  }
+
   get(id: string): Observable<User> {
     return this.http.get<User>(`${this.base}/${id}`);
+  }
+
+  update(id: string, req: UpdateUserRequest): Observable<User> {
+    return this.http.patch<User>(`${this.base}/${id}`, req);
+  }
+
+  changePassword(id: string, currentPassword: string, newPassword: string): Observable<void> {
+    return this.http.put<void>(`${this.base}/${id}/password`,
+      { currentPassword, newPassword });
   }
 
   // ----- Watchlist -----

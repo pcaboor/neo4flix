@@ -3,10 +3,13 @@ import { RouterLink } from '@angular/router';
 import { catchError, forkJoin, of } from 'rxjs';
 import { MovieApi } from '../../core/api/movie-api.service';
 import { RatingApi } from '../../core/api/rating-api.service';
+import { RecommendationApi } from '../../core/api/recommendation-api.service';
 import { UserApi } from '../../core/api/user-api.service';
 import { AuthService } from '../../core/auth/auth.service';
+import { ToastService } from '../../core/toast/toast.service';
 import { Movie } from '../../core/models/movie.model';
 import { MovieRatingStats, Rating } from '../../core/models/rating.model';
+import { Recommendation } from '../../core/models/recommendation.model';
 import { StarRatingComponent } from '../../shared/components/star-rating.component';
 
 /**
@@ -124,6 +127,29 @@ import { StarRatingComponent } from '../../shared/components/star-rating.compone
             </div>
           </section>
         }
+
+        @if (similar().length) {
+          <section>
+            <h2 class="text-lg font-medium text-zinc-300 mb-3">Films similaires</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              @for (s of similar(); track s.movieId) {
+                <a [routerLink]="['/movies', s.movieId]"
+                   class="card hover:border-accent-500 transition-colors block !p-4">
+                  <h3 class="font-medium text-zinc-100">{{ s.title }}</h3>
+                  <p class="text-xs text-zinc-500 mt-1">
+                    {{ s.releaseYear }}
+                    @if (s.genres.length) {
+                      · {{ s.genres.slice(0, 3).join(', ') }}
+                    }
+                  </p>
+                  @if (s.reason) {
+                    <p class="text-xs text-zinc-400 italic mt-2">{{ s.reason }}</p>
+                  }
+                </a>
+              }
+            </div>
+          </section>
+        }
       </div>
     } @else if (loading()) {
       <p class="text-zinc-500">Chargement…</p>
@@ -136,7 +162,9 @@ export class MovieDetailComponent implements OnInit {
   private movieApi = inject(MovieApi);
   private ratingApi = inject(RatingApi);
   private userApi = inject(UserApi);
+  private recoApi = inject(RecommendationApi);
   private auth = inject(AuthService);
+  private toast = inject(ToastService);
 
   // Provided by router withComponentInputBinding (path :id → input id)
   id = input.required<string>();
@@ -145,6 +173,7 @@ export class MovieDetailComponent implements OnInit {
   protected stats = signal<MovieRatingStats | null>(null);
   protected myRating = signal<Rating | null>(null);
   protected recentRatings = signal<Rating[]>([]);
+  protected similar = signal<Recommendation[]>([]);
   protected inWatchlist = signal(false);
   protected loading = signal(true);
   protected busy = signal(false);
@@ -167,8 +196,9 @@ export class MovieDetailComponent implements OnInit {
         this.myRating.set(r);
         this.busy.set(false);
         this.refreshStats();
+        this.toast.success(`Noté ${score}/5`);
       },
-      error: () => this.busy.set(false)
+      error: () => { this.busy.set(false); this.toast.error('Erreur'); }
     });
   }
 
@@ -176,15 +206,17 @@ export class MovieDetailComponent implements OnInit {
     const userId = this.auth.currentUser()?.id;
     if (!userId) return;
     this.busy.set(true);
-    const op = this.inWatchlist()
+    const wasIn = this.inWatchlist();
+    const op = wasIn
       ? this.userApi.removeFromWatchlist(userId, this.id())
       : this.userApi.addToWatchlist(userId, this.id());
     op.subscribe({
       next: () => {
         this.inWatchlist.update(v => !v);
         this.busy.set(false);
+        this.toast.info(wasIn ? 'Retiré de la watchlist' : 'Ajouté à la watchlist');
       },
-      error: () => this.busy.set(false)
+      error: () => { this.busy.set(false); this.toast.error('Erreur'); }
     });
   }
 
@@ -193,17 +225,19 @@ export class MovieDetailComponent implements OnInit {
     this.loading.set(true);
 
     forkJoin({
-      movie: this.movieApi.get(this.id()).pipe(catchError(() => of(null))),
-      stats: this.ratingApi.stats(this.id()).pipe(catchError(() => of(null))),
-      ratings: this.ratingApi.byMovie(this.id()).pipe(catchError(() => of([] as Rating[]))),
-      watchlist: this.userApi.watchlist(userId).pipe(catchError(() => of([])))
-    }).subscribe(({ movie, stats, ratings, watchlist }) => {
+      movie:     this.movieApi.get(this.id()).pipe(catchError(() => of(null))),
+      stats:     this.ratingApi.stats(this.id()).pipe(catchError(() => of(null))),
+      ratings:   this.ratingApi.byMovie(this.id()).pipe(catchError(() => of([] as Rating[]))),
+      watchlist: this.userApi.watchlist(userId).pipe(catchError(() => of([]))),
+      similar:   this.recoApi.similarTo(this.id(), 6).pipe(catchError(() => of([] as Recommendation[])))
+    }).subscribe(({ movie, stats, ratings, watchlist, similar }) => {
       this.movie.set(movie);
       this.stats.set(stats);
       const mine = ratings.find(r => r.userId === userId) ?? null;
       this.myRating.set(mine);
       this.recentRatings.set(ratings.filter(r => r.userId !== userId).slice(0, 5));
       this.inWatchlist.set(watchlist.some(w => w.id === this.id()));
+      this.similar.set(similar);
       this.loading.set(false);
     });
   }

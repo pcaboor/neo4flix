@@ -29,6 +29,18 @@ export const routes: Routes = [
       {
         path: 'watchlist',
         loadComponent: () => import('./features/watchlist/watchlist.component').then(m => m.WatchlistComponent)
+      },
+      {
+        path: 'recommendations',
+        loadComponent: () => import('./features/recommendations/recommendations.component').then(m => m.RecommendationsComponent)
+      },
+      {
+        path: 'profile',
+        loadComponent: () => import('./features/profile/profile.component').then(m => m.ProfileComponent)
+      },
+      {
+        path: 'users',
+        loadComponent: () => import('./features/users/users.component').then(m => m.UsersComponent)
       }
     ]
   },
