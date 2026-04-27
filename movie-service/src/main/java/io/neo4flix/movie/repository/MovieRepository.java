@@ -30,4 +30,21 @@ public interface MovieRepository extends Neo4jRepository<Movie, String> {
             ORDER BY m.releaseYear DESC
             """)
     List<Movie> findByGenre(@Param("genreName") String genreName);
+
+    /**
+     * Supprime les relations BELONGS_TO d'un film.
+     * À appeler avant save() pour remplacer (et non additionner) les genres.
+     */
+    @Query("""
+            MATCH (:Movie {id: $id})-[r:BELONGS_TO]->()
+            DELETE r
+            """)
+    void detachGenres(@Param("id") String id);
+
+    /** Supprime les relations DIRECTED_BY d'un film. */
+    @Query("""
+            MATCH (:Movie {id: $id})-[r:DIRECTED_BY]->()
+            DELETE r
+            """)
+    void detachDirectors(@Param("id") String id);
 }

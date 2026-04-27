@@ -5,12 +5,15 @@ import io.neo4flix.common.error.ResourceNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import java.util.List;
+
 /**
  * Convertit les exceptions levées par les controllers en réponses JSON normalisées.
- * Sans ça, Spring renverrait une stacktrace ou un format Whitelabel non maîtrisé.
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -20,6 +23,30 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.NOT_FOUND)
                 .body(ApiError.of(404, "Not Found", ex.getMessage(), req.getRequestURI()));
+    }
+
+    /** Erreurs @Valid : @NotBlank, @Min, @Size, etc. */
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ApiError> validation(MethodArgumentNotValidException ex,
+                                                HttpServletRequest req) {
+        List<String> details = ex.getBindingResult().getFieldErrors().stream()
+                .map(fe -> "%s: %s".formatted(fe.getField(), fe.getDefaultMessage()))
+                .toList();
+        return ResponseEntity
+                .badRequest()
+                .body(ApiError.of(400, "Bad Request", "Validation failed",
+                        req.getRequestURI(), details));
+    }
+
+    /** JSON malformé / body absent */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiError> badJson(HttpMessageNotReadableException ex,
+                                             HttpServletRequest req) {
+        return ResponseEntity
+                .badRequest()
+                .body(ApiError.of(400, "Bad Request",
+                        "Corps de requête invalide ou manquant",
+                        req.getRequestURI()));
     }
 
     @ExceptionHandler(Exception.class)
