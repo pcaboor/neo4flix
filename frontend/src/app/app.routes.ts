@@ -13,6 +13,11 @@ export const routes: Routes = [
     loadComponent: () => import('./features/auth/register.component').then(m => m.RegisterComponent)
   },
   {
+    // Lien public — pas de guard. Accessible même sans connexion.
+    path: 'share/:token',
+    loadComponent: () => import('./features/share/share.component').then(m => m.ShareComponent)
+  },
+  {
     path: '',
     canActivate: [authGuard],
     loadComponent: () => import('./shared/layout/app-shell.component').then(m => m.AppShellComponent),

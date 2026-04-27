@@ -60,6 +60,13 @@ spring:
           filters:
             - StripPrefix=1
 
+        - id: shares-route
+          uri: ${RECOMMENDATION_SERVICE_URI:http://recommendation-service:8084}
+          predicates:
+            - Path=/api/shares/**
+          filters:
+            - StripPrefix=1
+
 management:
   endpoints:
     web:

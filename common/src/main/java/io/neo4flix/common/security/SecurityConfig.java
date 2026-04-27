@@ -50,6 +50,9 @@ public class SecurityConfig {
                         // /auth/2fa/setup|enable|disable exigent un token (configuration
                         // par un user déjà connecté) → tombent sur anyRequest().authenticated()
                         .requestMatchers(HttpMethod.POST, "/users").permitAll()
+                        // Lien de partage en lecture publique. POST /shares
+                        // reste authentifié (création).
+                        .requestMatchers(HttpMethod.GET, "/shares/*").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html",
                                          "/v3/api-docs/**", "/v3/api-docs.yaml").permitAll()
